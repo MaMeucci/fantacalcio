@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fantacalcio Drag&Drop</title>
+<title>Fantacalcio Drag&Drop Modulo</title>
 
-<!-- Sortable.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <style>
@@ -26,11 +25,6 @@ header {
 
 .container {
   padding: 12px;
-}
-
-input[type="file"] {
-  width: 100%;
-  margin-bottom: 12px;
 }
 
 select {
@@ -71,15 +65,13 @@ select {
   transition: all .2s;
 }
 
-.player.selected {
-  outline: 3px solid #000;
-  background: white;
-}
+.player.selected { outline: 3px solid #000; background: white; }
 
 .p { background: #d1fae5; }
 .d { background: #dbeafe; }
 .c { background: #fef3c7; }
 .a { background: #fee2e2; }
+.player.invalid { border: 2px solid red; }
 
 button {
   width: 100%;
@@ -106,11 +98,9 @@ textarea {
 </head>
 <body>
 
-<header>⚽ Fantacalcio Drag&Drop</header>
+<header>⚽ Fantacalcio Drag&Drop Modulo</header>
 
 <div class="container">
-
-<input type="file" id="fileInput" accept=".txt">
 
 <select id="modulo" onchange="updateFormation()">
   <option value="3-4-3">3-4-3</option>
@@ -129,7 +119,6 @@ textarea {
 </div>
 
 <script>
-// Ruoli mappati
 const roleMap = {
   Maignan: 'P', Terracciano: 'P', Torriani: 'P', Doneda: 'P',
   Rrahmani: 'D', Tomori: 'D', Caracciolo: 'D', Valeri: 'D',
@@ -140,112 +129,130 @@ const roleMap = {
   Pedro: 'A', Berardi: 'A'
 };
 
-let titolari = [];
-let panchina = [];
+let titolari=[], panchina=[];
+let moduloSelected = {P:1,D:4,C:4,A:2}; // default 4-4-2
 
-// File input
-document.getElementById('fileInput').addEventListener('change', e => {
-  const reader = new FileReader();
-  reader.onload = () => parseFile(reader.result);
-  reader.readAsText(e.target.files[0]);
-});
+// Carica rosa.txt automaticamente
+fetch('rosa.txt')
+  .then(res=>res.text())
+  .then(text=>{
+    const parts=text.trim().split(/\n\s*\n/);
+    titolari=parseBlock(parts[0]);
+    panchina=parseBlock(parts[1]);
+    render();
+    initDragDrop();
+  })
+  .catch(err=>alert("Errore caricamento rosa.txt: "+err));
 
-// Parsing
-function parseFile(text) {
-  const parts = text.trim().split(/\n\s*\n/);
-  titolari = parseBlock(parts[0]);
-  panchina = parseBlock(parts[1]);
-  render();
-  initDragDrop();
-}
-
-// Parse singolo blocco
-function parseBlock(block) {
+function parseBlock(block){
   return block.split('\n')
-    .map(l => l.replace(';','').trim())
+    .map(l=>l.replace(';','').trim())
     .filter(Boolean)
-    .map(name => ({
-      name,
-      role: roleMap[name] || 'C',
-      selected: true
-    }));
+    .map(name=>({name, role: roleMap[name]||'C', selected:true}));
 }
 
-// Render
-function render() {
-  renderSection('Titolari', titolari, 'titolari');
-  renderSection('Panchina', panchina, 'panchina');
+function render(){
+  renderSection('Titolari',titolari,'titolari');
+  renderSection('Panchina',panchina,'panchina');
+  validateFormation();
 }
 
-// Render sezione
-function renderSection(title, list, containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = `<h2>${title}</h2>`;
-  const roleOrder = ['P','D','C','A'];
-  roleOrder.forEach(r => {
-    const players = list.filter(p => p.role === r);
-    if (!players.length) return;
-    const div = document.createElement('div');
-    div.className = 'players';
-    div.id = containerId+'-'+r;
-    players.forEach(p => {
-      const el = document.createElement('div');
-      el.className = `player ${p.selected ? 'selected' : ''} ${r.toLowerCase()}`;
-      el.textContent = p.name;
-      el.setAttribute('draggable', true);
+function renderSection(title,list,containerId){
+  const container=document.getElementById(containerId);
+  container.innerHTML=`<h2>${title}</h2>`;
+  ['P','D','C','A'].forEach(r=>{
+    const players=list.filter(p=>p.role===r);
+    if(!players.length) return;
+    const div=document.createElement('div');
+    div.className='players';
+    div.id=containerId+'-'+r;
+    players.forEach(p=>{
+      const el=document.createElement('div');
+      el.className=`player ${p.selected?'selected':''} ${r.toLowerCase()}`;
+      el.textContent=p.name;
+      el.setAttribute('draggable',true);
       div.appendChild(el);
     });
     container.appendChild(div);
   });
 }
 
-// Drag & Drop con Sortable.js
-function initDragDrop() {
-  ['titolari','panchina'].forEach(sec => {
-    ['P','D','C','A'].forEach(r => {
-      const el = document.getElementById(sec+'-'+r);
-      if(el) Sortable.create(el, {
-        group: 'players',
-        animation: 150,
-        onEnd: (evt) => {
-          const name = evt.item.textContent;
-          movePlayer(name, evt.to.id.split('-')[0]);
+// Drag&Drop con swap
+function initDragDrop(){
+  ['titolari','panchina'].forEach(sec=>{
+    ['P','D','C','A'].forEach(r=>{
+      const el=document.getElementById(sec+'-'+r);
+      if(!el) return;
+      Sortable.create(el,{
+        group:'players',
+        animation:150,
+        swap:true,
+        swapClass:'player-selected',
+        onEnd:evt=>{
+          const fromId=evt.from.id.split('-')[0];
+          const toId=evt.to.id.split('-')[0];
+          const role=evt.to.id.split('-')[1];
+          swapPlayers(evt.item.textContent,fromId,toId,role);
         }
       });
     });
   });
 }
 
-// Aggiorna array quando sposti giocatore
-function movePlayer(name, dest) {
-  let from = dest === 'titolari' ? panchina : titolari;
-  let to = dest === 'titolari' ? titolari : panchina;
+function swapPlayers(name,fromSec,toSec,role){
+  const fromArr=fromSec==='titolari'?titolari:panchina;
+  const toArr=toSec==='titolari'?titolari:panchina;
+  const idxFrom=fromArr.findIndex(p=>p.name===name);
+  if(idxFrom<0) return;
+  const dragged=fromArr.splice(idxFrom,1)[0];
 
-  const idx = from.findIndex(p => p.name === name);
-  if(idx >=0){
-    const [p] = from.splice(idx,1);
-    to.push(p);
-    render();
-    initDragDrop();
+  // se c'è già giocatore di questo ruolo nello stesso container, scambia
+  const sameRole=toArr.filter(p=>p.role===role);
+  if(sameRole.length>0){
+    const swapIdx=toArr.findIndex(p=>p.name===sameRole[0].name);
+    const temp=toArr[swapIdx];
+    toArr[swapIdx]=dragged;
+    fromArr.push(temp);
+  }else{
+    toArr.push(dragged);
   }
+
+  render();
+  initDragDrop();
 }
 
-// Modulo
-function updateFormation() {
-  // per ora solo visuale, si può aggiungere validazione
-  const modulo = document.getElementById('modulo').value;
-  console.log('Modulo selezionato:', modulo);
+// Aggiorna modulo
+function updateFormation(){
+  const val=document.getElementById('modulo').value;
+  const nums=val.split('-').map(Number);
+  moduloSelected = {P:1,D:nums[0],C:nums[1],A:nums[2]};
+  validateFormation();
+}
+
+// Validazione modulo
+function validateFormation(){
+  ['P','D','C','A'].forEach(r=>{
+    const count = titolari.filter(p=>p.role===r).length;
+    const max = moduloSelected[r];
+    titolari.forEach(p=>{
+      if(p.role===r){
+        const el=document.querySelector(`#titolari-${r} .player:contains("${p.name}")`) || document.querySelectorAll(`#titolari-${r} .player`)[0];
+        if(!el) return;
+        if(count>max) el.classList.add('invalid');
+        else el.classList.remove('invalid');
+      }
+    });
+  });
 }
 
 // Output
-function generateOutput() {
-  const out = [];
-  titolari.forEach(p => out.push(p.name + ';'));
+function generateOutput(){
+  const out=[];
+  titolari.forEach(p=>out.push(p.name+';'));
   out.push('');
-  panchina.forEach(p => out.push(p.name + ';'));
-  document.getElementById('output').value = out.join('\n');
+  panchina.forEach(p=>out.push(p.name+';'));
+  document.getElementById('output').value=out.join('\n');
 }
-
 </script>
 </body>
 </html>
