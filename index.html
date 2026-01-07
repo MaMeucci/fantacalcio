@@ -4,84 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fantacalcio Schiera formazione</title>
-
 <style>
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-  background: #f4f6f8;
-}
-header {
-  background: #111827;
-  color: white;
-  padding: 14px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 18px;
-}
-.container { padding: 12px; }
-.section { margin-bottom: 18px; }
-.section h2 { margin: 6px 0; font-size: 16px; }
-.players {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 50px;
-  padding: 6px;
-  background: #f0f0f0;
-  border-radius: 12px;
-}
-.player {
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-  background: #e5e7eb;
-  transition: all .2s;
-}
-.player.p { background: #d1fae5; }
-.player.d { background: #dbeafe; }
-.player.c { background: #fef3c7; }
-.player.a { background: #fee2e2; }
-.player.selected { outline: 2px solid #111827; }
-button {
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 14px;
-  background: #2563eb;
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
-}
-textarea {
-  width: 100%;
-  height: 220px;
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid #ccc;
-  font-family: monospace;
-  font-size: 14px;
-}
+body { font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto; background:#f4f6f8; margin:0; }
+header { background:#111827; color:white; padding:14px; text-align:center; font-weight:600; font-size:18px;}
+.container{padding:12px;}
+.section{margin-bottom:18px;}
+.section h2{margin:6px 0;font-size:16px;}
+.player-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
+.player-label{min-width:120px;}
+select{padding:4px;border-radius:6px;border:1px solid #ccc;}
+button{width:100%;padding:14px;border:none;border-radius:14px;background:#2563eb;color:white;font-size:16px;font-weight:600;margin-top:12px;}
+textarea{width:100%;height:220px;margin-top:12px;padding:12px;border-radius:12px;border:1px solid #ccc;font-family:monospace;font-size:14px;}
 </style>
 </head>
 <body>
-
 <header>⚽ Fantacalcio Schiera formazione</header>
-
 <div class="container">
 <div id="titolari" class="section"></div>
 <div id="panchina" class="section"></div>
-
 <button onclick="generateOutput()">Genera output</button>
 <textarea id="output" placeholder="Output finale..."></textarea>
 </div>
 
 <script>
 let titolari=[], panchina=[];
-let selectedPlayer = null;
 
 // Carica rosa.txt
 fetch('rosa.txt')
@@ -92,12 +38,12 @@ fetch('rosa.txt')
     panchina = parseBlock(parts[1]);
     render();
   })
-  .catch(err => alert("Errore caricamento rosa.txt: "+err));
+  .catch(err => alert("Errore caricamento rosa.txt: " + err));
 
-function parseBlock(block) {
+function parseBlock(block){
   return block.split('\n').filter(Boolean).map(line=>{
     const [role,name] = line.split(';').map(s=>s.trim());
-    return {role, name};
+    return {role,name};
   });
 }
 
@@ -106,54 +52,37 @@ function render(){
   renderSection('Panchina', panchina, 'panchina');
 }
 
-function renderSection(title, list, containerId){
+function renderSection(title, arr, containerId){
   const container = document.getElementById(containerId);
   container.innerHTML = `<h2>${title}</h2>`;
   ['P','D','C','A'].forEach(r=>{
-    const players = list.filter(p=>p.role===r);
+    const players = arr.filter(p=>p.role===r);
     if(!players.length) return;
-    const div = document.createElement('div');
-    div.className='players';
-    div.id=containerId+'-'+r;
     players.forEach((p,i)=>{
-      const el = document.createElement('div');
-      el.className = `player ${r.toLowerCase()}`;
-      el.textContent = p.name;
-      el.addEventListener('click', ()=>handleClick(containerId, r, i));
-      div.appendChild(el);
+      const row = document.createElement('div');
+      row.className='player-row';
+      const label = document.createElement('div');
+      label.className='player-label';
+      label.textContent=`${r} - `;
+      const select = document.createElement('select');
+      // Lista giocatori disponibili per quel ruolo (titolari+panchina)
+      const allPlayers = [...titolari,...panchina].filter(g=>g.role===r);
+      allPlayers.forEach(g=>{
+        const option = document.createElement('option');
+        option.value=g.name;
+        option.textContent=g.name;
+        if(g.name===p.name) option.selected=true;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', e=>{
+        p.name=e.target.value;
+        render(); // aggiorna subito
+      });
+      row.appendChild(label);
+      row.appendChild(select);
+      container.appendChild(row);
     });
-    container.appendChild(div);
   });
-}
-
-// Click & Replace corretto
-function handleClick(containerId, role, index){
-  const arr = containerId==='titolari'?titolari:panchina;
-
-  if(!selectedPlayer){
-    selectedPlayer = {arr, role, index};
-    highlightPlayer(containerId, role, index, true);
-  } else {
-    const from = selectedPlayer;
-    const targetArr = arr;
-
-    // Scambia solo se siamo nello stesso array (tit/panchina) e stesso ruolo
-    if(from.arr === targetArr && from.arr[from.index].role === role){
-      const temp = targetArr[index];
-      targetArr[index] = from.arr[from.index];
-      from.arr[from.index] = temp;
-    }
-
-    // Deseleziona sempre
-    highlightPlayer(from.arr===titolari?'titolari':'panchina', from.role, from.index, false);
-    selectedPlayer = null;
-    render();
-  }
-}
-
-function highlightPlayer(containerId, role, index, highlight){
-  const el = document.getElementById(containerId+'-'+role).children[index];
-  if(el) el.classList.toggle('selected', highlight);
 }
 
 // Output
@@ -169,6 +98,5 @@ function generateOutput(){
   document.getElementById('output').value = out.join('\n');
 }
 </script>
-
 </body>
 </html>
