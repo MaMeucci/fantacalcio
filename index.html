@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fantacalcio Lineup</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  background: #f4f6f8;
+}
+
+header {
+  background: #111827;
+  color: white;
+  padding: 14px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.container {
+  padding: 12px;
+}
+
+input[type="file"] {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.section {
+  margin-bottom: 18px;
+}
+
+.section h2 {
+  margin: 6px 0;
+  font-size: 16px;
+}
+
+.players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: all .2s;
+  background: #e5e7eb;
+}
+
+.player.selected {
+  outline: 3px solid #000;
+  background: white;
+}
+
+.p { background: #d1fae5; }
+.d { background: #dbeafe; }
+.c { background: #fef3c7; }
+.a { background: #fee2e2; }
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: #2563eb;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+textarea {
+  width: 100%;
+  height: 220px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-family: monospace;
+  font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<header>⚽ Fantacalcio Lineup</header>
+
+<div class="container">
+
+<input type="file" id="fileInput" accept=".txt">
+
+<div id="titolari"></div>
+<div id="panchina"></div>
+
+<button onclick="generateOutput()">Genera output</button>
+
+<textarea id="output" placeholder="Output finale..."></textarea>
+
+</div>
+
+<script>
+const roleMap = {
+  Maignan: 'P', Terracciano: 'P', Torriani: 'P', Doneda: 'P',
+  Rrahmani: 'D', Tomori: 'D', Caracciolo: 'D', Valeri: 'D',
+  Scalvini: 'D', Beukema: 'D', Kelly: 'D', Vitik: 'D',
+  Thorstvedt: 'C', Odgaard: 'C', Calhanoglu: 'C', 'Loftus-Cheek': 'C',
+  Fabbian: 'C', Tramoni: 'C', Bailey: 'C',
+  Thuram: 'A', "Soule'": 'A', Vardy: 'A', Vazquez: 'A',
+  Pedro: 'A', Berardi: 'A'
+};
+
+let titolari = [];
+let panchina = [];
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const reader = new FileReader();
+  reader.onload = () => parseFile(reader.result);
+  reader.readAsText(e.target.files[0]);
+});
+
+function parseFile(text) {
+  const parts = text.trim().split(/\n\s*\n/);
+  titolari = parseBlock(parts[0]);
+  panchina = parseBlock(parts[1]);
+  render();
+}
+
+function parseBlock(block) {
+  return block.split('\n')
+    .map(l => l.replace(';','').trim())
+    .filter(Boolean)
+    .map(name => ({
+      name,
+      role: roleMap[name] || 'C',
+      selected: true
+    }));
+}
+
+function render() {
+  renderSection('Titolari', titolari, 'titolari');
+  renderSection('Panchina', panchina, 'panchina');
+}
+
+function renderSection(title, list, containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `<div class="section"><h2>${title}</h2></div>`;
+  const section = container.querySelector('.section');
+
+  ['P','D','C','A'].forEach(r => {
+    const players = list.filter(p => p.role === r);
+    if (!players.length) return;
+
+    const div = document.createElement('div');
+    div.className = 'players';
+
+    players.forEach(p => {
+      const el = document.createElement('div');
+      el.className = `player ${p.selected ? 'selected' : ''} ${r.toLowerCase()}`;
+      el.textContent = p.name;
+      el.onclick = () => {
+        p.selected = !p.selected;
+        render();
+      };
+      div.appendChild(el);
+    });
+
+    section.appendChild(div);
+  });
+}
+
+function generateOutput() {
+  const out = [];
+
+  titolari.filter(p => p.selected).forEach(p => out.push(p.name + ';'));
+  out.push('');
+  panchina.filter(p => p.selected).forEach(p => out.push(p.name + ';'));
+
+  document.getElementById('output').value = out.join('\n');
+}
+</script>
+
+</body>
+</html>
