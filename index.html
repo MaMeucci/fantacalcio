@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fantacalcio Lineup</title>
+<title>Fantacalcio Drag&Drop</title>
+
+<!-- Sortable.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <style>
 body {
@@ -30,6 +33,15 @@ input[type="file"] {
   margin-bottom: 12px;
 }
 
+select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
 .section {
   margin-bottom: 18px;
 }
@@ -43,16 +55,20 @@ input[type="file"] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-height: 50px;
+  padding: 6px;
+  background: #f0f0f0;
+  border-radius: 12px;
 }
 
 .player {
   padding: 10px 12px;
   border-radius: 12px;
   font-size: 14px;
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
-  transition: all .2s;
   background: #e5e7eb;
+  transition: all .2s;
 }
 
 .player.selected {
@@ -88,17 +104,23 @@ textarea {
 }
 </style>
 </head>
-
 <body>
 
-<header>⚽ Fantacalcio Lineup</header>
+<header>⚽ Fantacalcio Drag&Drop</header>
 
 <div class="container">
 
 <input type="file" id="fileInput" accept=".txt">
 
-<div id="titolari"></div>
-<div id="panchina"></div>
+<select id="modulo" onchange="updateFormation()">
+  <option value="3-4-3">3-4-3</option>
+  <option value="4-3-3">4-3-3</option>
+  <option value="4-4-2">4-4-2</option>
+  <option value="3-5-2">3-5-2</option>
+</select>
+
+<div id="titolari" class="section"></div>
+<div id="panchina" class="section"></div>
 
 <button onclick="generateOutput()">Genera output</button>
 
@@ -107,6 +129,7 @@ textarea {
 </div>
 
 <script>
+// Ruoli mappati
 const roleMap = {
   Maignan: 'P', Terracciano: 'P', Torriani: 'P', Doneda: 'P',
   Rrahmani: 'D', Tomori: 'D', Caracciolo: 'D', Valeri: 'D',
@@ -120,19 +143,23 @@ const roleMap = {
 let titolari = [];
 let panchina = [];
 
+// File input
 document.getElementById('fileInput').addEventListener('change', e => {
   const reader = new FileReader();
   reader.onload = () => parseFile(reader.result);
   reader.readAsText(e.target.files[0]);
 });
 
+// Parsing
 function parseFile(text) {
   const parts = text.trim().split(/\n\s*\n/);
   titolari = parseBlock(parts[0]);
   panchina = parseBlock(parts[1]);
   render();
+  initDragDrop();
 }
 
+// Parse singolo blocco
 function parseBlock(block) {
   return block.split('\n')
     .map(l => l.replace(';','').trim())
@@ -144,48 +171,81 @@ function parseBlock(block) {
     }));
 }
 
+// Render
 function render() {
   renderSection('Titolari', titolari, 'titolari');
   renderSection('Panchina', panchina, 'panchina');
 }
 
+// Render sezione
 function renderSection(title, list, containerId) {
   const container = document.getElementById(containerId);
-  container.innerHTML = `<div class="section"><h2>${title}</h2></div>`;
-  const section = container.querySelector('.section');
-
-  ['P','D','C','A'].forEach(r => {
+  container.innerHTML = `<h2>${title}</h2>`;
+  const roleOrder = ['P','D','C','A'];
+  roleOrder.forEach(r => {
     const players = list.filter(p => p.role === r);
     if (!players.length) return;
-
     const div = document.createElement('div');
     div.className = 'players';
-
+    div.id = containerId+'-'+r;
     players.forEach(p => {
       const el = document.createElement('div');
       el.className = `player ${p.selected ? 'selected' : ''} ${r.toLowerCase()}`;
       el.textContent = p.name;
-      el.onclick = () => {
-        p.selected = !p.selected;
-        render();
-      };
+      el.setAttribute('draggable', true);
       div.appendChild(el);
     });
-
-    section.appendChild(div);
+    container.appendChild(div);
   });
 }
 
+// Drag & Drop con Sortable.js
+function initDragDrop() {
+  ['titolari','panchina'].forEach(sec => {
+    ['P','D','C','A'].forEach(r => {
+      const el = document.getElementById(sec+'-'+r);
+      if(el) Sortable.create(el, {
+        group: 'players',
+        animation: 150,
+        onEnd: (evt) => {
+          const name = evt.item.textContent;
+          movePlayer(name, evt.to.id.split('-')[0]);
+        }
+      });
+    });
+  });
+}
+
+// Aggiorna array quando sposti giocatore
+function movePlayer(name, dest) {
+  let from = dest === 'titolari' ? panchina : titolari;
+  let to = dest === 'titolari' ? titolari : panchina;
+
+  const idx = from.findIndex(p => p.name === name);
+  if(idx >=0){
+    const [p] = from.splice(idx,1);
+    to.push(p);
+    render();
+    initDragDrop();
+  }
+}
+
+// Modulo
+function updateFormation() {
+  // per ora solo visuale, si può aggiungere validazione
+  const modulo = document.getElementById('modulo').value;
+  console.log('Modulo selezionato:', modulo);
+}
+
+// Output
 function generateOutput() {
   const out = [];
-
-  titolari.filter(p => p.selected).forEach(p => out.push(p.name + ';'));
+  titolari.forEach(p => out.push(p.name + ';'));
   out.push('');
-  panchina.filter(p => p.selected).forEach(p => out.push(p.name + ';'));
-
+  panchina.forEach(p => out.push(p.name + ';'));
   document.getElementById('output').value = out.join('\n');
 }
-</script>
 
+</script>
 </body>
 </html>
