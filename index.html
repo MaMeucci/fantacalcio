@@ -197,3 +197,202 @@ function generateOutput(){
 
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fantacalcio Drag&Drop 4-3-3</title>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  background: #f4f6f8;
+}
+header {
+  background: #111827;
+  color: white;
+  padding: 14px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
+}
+.container { padding: 12px; }
+.section { margin-bottom: 18px; }
+.section h2 { margin: 6px 0; font-size: 16px; }
+.players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 50px;
+  padding: 6px;
+  background: #f0f0f0;
+  border-radius: 12px;
+}
+.player {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: grab;
+  user-select: none;
+  background: #e5e7eb;
+  transition: all .2s;
+}
+.p { background: #d1fae5; }
+.d { background: #dbeafe; }
+.c { background: #fef3c7; }
+.a { background: #fee2e2; }
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: #2563eb;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+textarea {
+  width: 100%;
+  height: 220px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-family: monospace;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<header>⚽ Fantacalcio 4-3-3</header>
+
+<div class="container">
+
+<div id="titolari" class="section"></div>
+<div id="panchina" class="section"></div>
+
+<button onclick="generateOutput()">Genera output</button>
+<textarea id="output" placeholder="Output finale..."></textarea>
+
+</div>
+
+<script>
+let titolari=[], panchina=[];
+
+// Carica rosa.txt automaticamente
+fetch('rosa.txt')
+  .then(res => res.text())
+  .then(text => {
+    const parts = text.trim().split(/\n\s*\n/);
+    titolari = parseBlock(parts[0]);
+    panchina = parseBlock(parts[1]);
+    render();
+    initDragDrop();
+  })
+  .catch(err => alert("Errore caricamento rosa.txt: " + err));
+
+function parseBlock(block){
+  return block.split('\n')
+    .map(l=>l.replace(';','').trim())
+    .filter(Boolean)
+    .map((name,i)=>({name, role: deduceRole(i), selected:true}));
+}
+
+// Ruoli fissi per modulo 4-3-3
+function deduceRole(index){
+  if(index===0) return 'P';         // 1 portiere
+  if(index>=1 && index<=4) return 'D';  // 4 difensori
+  if(index>=5 && index<=7) return 'C';  // 3 centrocampisti
+  return 'A';                        // 3 attaccanti
+}
+
+// Render
+function render(){
+  renderSection('Titolari', titolari, 'titolari');
+  renderSection('Panchina', panchina, 'panchina');
+}
+
+// Render sezione
+function renderSection(title,list,containerId){
+  const container=document.getElementById(containerId);
+  container.innerHTML=`<h2>${title}</h2>`;
+  ['P','D','C','A'].forEach(r=>{
+    const players=list.filter(p=>p.role===r);
+    if(!players.length) return;
+    const div=document.createElement('div');
+    div.className='players';
+    div.id=containerId+'-'+r;
+    players.forEach(p=>{
+      const el=document.createElement('div');
+      el.className=`player ${r.toLowerCase()}`;
+      el.textContent=p.name;
+      el.setAttribute('draggable',true);
+      div.appendChild(el);
+    });
+    container.appendChild(div);
+  });
+}
+
+// Drag&Drop swap con Sortable.js
+function initDragDrop(){
+  ['titolari','panchina'].forEach(sec=>{
+    ['P','D','C','A'].forEach(r=>{
+      const el=document.getElementById(sec+'-'+r);
+      if(!el) return;
+      Sortable.create(el,{
+        group:'players',
+        animation:150,
+        swap:true,
+        swapClass:'player-selected',
+        onEnd: evt=>{
+          const fromSec = evt.from.id.split('-')[0];
+          const toSec = evt.to.id.split('-')[0];
+          const role = evt.to.id.split('-')[1];
+          const name = evt.item.textContent;
+          swapPlayers(name, fromSec, toSec, role);
+        }
+      });
+    });
+  });
+}
+
+// Funzione swap giocatori
+function swapPlayers(name,fromSec,toSec,role){
+  const fromArr = fromSec==='titolari'?titolari:panchina;
+  const toArr = toSec==='titolari'?titolari:panchina;
+  const idxFrom = fromArr.findIndex(p=>p.name===name);
+  if(idxFrom<0) return;
+  const dragged = fromArr.splice(idxFrom,1)[0];
+
+  // Swap se c'è già giocatore in toArr con stesso ruolo
+  const sameRole = toArr.find(p=>p.role===role);
+  if(sameRole){
+    const idxSwap = toArr.findIndex(p=>p.name===sameRole.name);
+    const temp = toArr[idxSwap];
+    toArr[idxSwap] = dragged;
+    fromArr.push(temp);
+  } else {
+    toArr.push(dragged);
+  }
+
+  render();
+  initDragDrop();
+}
+
+// Output finale
+function generateOutput(){
+  const out=[];
+  titolari.forEach(p=>out.push(p.name+';'));
+  out.push('');
+  panchina.forEach(p=>out.push(p.name+';'));
+  document.getElementById('output').value = out.join('\n');
+}
+</script>
+
+</body>
+</html>
