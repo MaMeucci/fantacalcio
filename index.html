@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fantacalcio Click & Replace</title>
+<title>Fantacalcio Schiera formazione</title>
 
 <style>
 body {
@@ -69,16 +69,14 @@ textarea {
 </head>
 <body>
 
-<header>⚽ Fantacalcio Click & Replace</header>
+<header>⚽ Fantacalcio Click & Replace Corretto</header>
 
 <div class="container">
-
 <div id="titolari" class="section"></div>
 <div id="panchina" class="section"></div>
 
 <button onclick="generateOutput()">Genera output</button>
 <textarea id="output" placeholder="Output finale..."></textarea>
-
 </div>
 
 <script>
@@ -94,7 +92,7 @@ fetch('rosa.txt')
     panchina = parseBlock(parts[1]);
     render();
   })
-  .catch(err => alert("Errore caricamento rosa.txt: " + err));
+  .catch(err => alert("Errore caricamento rosa.txt: "+err));
 
 function parseBlock(block) {
   return block.split('\n').filter(Boolean).map(line=>{
@@ -128,27 +126,28 @@ function renderSection(title, list, containerId){
   });
 }
 
-// Gestione click & replace
+// Click & Replace corretto
 function handleClick(containerId, role, index){
   const arr = containerId==='titolari'?titolari:panchina;
+
   if(!selectedPlayer){
     selectedPlayer = {arr, role, index};
     highlightPlayer(containerId, role, index, true);
   } else {
-    const targetArr = arr;
     const from = selectedPlayer;
-    // scambia solo se stesso e target hanno stesso ruolo
-    if(from.arr[from.index].role === targetArr[index].role){
+    const targetArr = arr;
+
+    // Scambia solo se siamo nello stesso array (tit/panchina) e stesso ruolo
+    if(from.arr === targetArr && from.arr[from.index].role === role){
       const temp = targetArr[index];
       targetArr[index] = from.arr[from.index];
       from.arr[from.index] = temp;
-      selectedPlayer = null;
-      render();
-    } else {
-      // deseleziona se ruolo diverso
-      highlightPlayer(from.arr===titolari?'titolari':'panchina', from.role, from.index, false);
-      selectedPlayer = null;
     }
+
+    // Deseleziona sempre
+    highlightPlayer(from.arr===titolari?'titolari':'panchina', from.role, from.index, false);
+    selectedPlayer = null;
+    render();
   }
 }
 
