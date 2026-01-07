@@ -89,7 +89,7 @@ let titolari=[], panchina=[];
 fetch('rosa.txt')
   .then(res => res.text())
   .then(text => {
-    const parts = text.trim().split(/\n\s*\n/); // riga vuota separa titolari/panchina
+    const parts = text.trim().split(/\n\s*\n/);
     titolari = parseBlock(parts[0]);
     panchina = parseBlock(parts[1]);
     render();
@@ -97,24 +97,19 @@ fetch('rosa.txt')
   })
   .catch(err => alert("Errore caricamento rosa.txt: "+err));
 
-// Parsing singolo blocco (tit/panchina)
 function parseBlock(block) {
-  const lines = block.split('\n').filter(Boolean);
-  const list = [];
-  lines.forEach(line => {
-    const [role, name] = line.split(';').map(s => s.trim());
-    if(role && name) list.push({role, name, selected:true});
+  return block.split('\n').filter(Boolean).map(line=>{
+    const [role,name] = line.split(';').map(s=>s.trim());
+    return {role, name, selected:true};
   });
-  return list;
 }
 
 // Render
-function render() {
+function render(){
   renderSection('Titolari', titolari, 'titolari');
   renderSection('Panchina', panchina, 'panchina');
 }
 
-// Render sezione
 function renderSection(title, list, containerId){
   const container = document.getElementById(containerId);
   container.innerHTML = `<h2>${title}</h2>`;
@@ -135,8 +130,8 @@ function renderSection(title, list, containerId){
   });
 }
 
-// Drag&Drop swap con Sortable.js
-function initDragDrop() {
+// Drag&Drop senza swap
+function initDragDrop(){
   ['titolari','panchina'].forEach(sec=>{
     ['P','D','C','A'].forEach(r=>{
       const el = document.getElementById(sec+'-'+r);
@@ -144,43 +139,31 @@ function initDragDrop() {
       Sortable.create(el,{
         group:'players',
         animation:150,
-        swap:true,
-        swapClass:'player-selected',
-        onEnd: evt => {
+        onEnd: evt=>{
           const fromSec = evt.from.id.split('-')[0];
           const toSec = evt.to.id.split('-')[0];
-          const role = evt.to.id.split('-')[1];
           const name = evt.item.textContent;
-          swapPlayers(name, fromSec, toSec, role);
+          const role = evt.to.id.split('-')[1];
+
+          const fromArr = fromSec==='titolari'?titolari:panchina;
+          const toArr = toSec==='titolari'?titolari:panchina;
+
+          const idx = fromArr.findIndex(p=>p.name===name && p.role===role);
+          if(idx<0) return;
+          const dragged = fromArr.splice(idx,1)[0];
+
+          // Inserimento semplice senza swap
+          toArr.splice(evt.newIndex,0,dragged);
+
+          render();
+          initDragDrop();
         }
       });
     });
   });
 }
 
-// Funzione swap giocatori
-function swapPlayers(name,fromSec,toSec,role){
-  const fromArr = fromSec==='titolari'?titolari:panchina;
-  const toArr = toSec==='titolari'?titolari:panchina;
-  const idxFrom = fromArr.findIndex(p=>p.name===name && p.role===role);
-  if(idxFrom<0) return;
-  const dragged = fromArr.splice(idxFrom,1)[0];
-
-  const sameRole = toArr.find(p=>p.role===role);
-  if(sameRole){
-    const idxSwap = toArr.findIndex(p=>p.name===sameRole.name && p.role===role);
-    const temp = toArr[idxSwap];
-    toArr[idxSwap] = dragged;
-    fromArr.push(temp);
-  } else {
-    toArr.push(dragged);
-  }
-
-  render();
-  initDragDrop();
-}
-
-// Output finale
+// Output
 function generateOutput(){
   const out=[];
   titolari.forEach(p=>out.push(p.role+';'+p.name+';'));
