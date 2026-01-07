@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fantacalcio Drag&Drop Modulo</title>
+<title>Fantacalcio Drag&Drop</title>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
@@ -65,13 +65,10 @@ select {
   transition: all .2s;
 }
 
-.player.selected { outline: 3px solid #000; background: white; }
-
 .p { background: #d1fae5; }
 .d { background: #dbeafe; }
 .c { background: #fef3c7; }
 .a { background: #fee2e2; }
-.player.invalid { border: 2px solid red; }
 
 button {
   width: 100%;
@@ -98,7 +95,7 @@ textarea {
 </head>
 <body>
 
-<header>⚽ Fantacalcio Drag&Drop Modulo</header>
+<header>⚽ Fantacalcio Drag&Drop</header>
 
 <div class="container">
 
@@ -129,56 +126,55 @@ const roleMap = {
   Pedro: 'A', Berardi: 'A'
 };
 
-let titolari=[], panchina=[];
-let moduloSelected = {P:1,D:4,C:4,A:2}; // default 4-4-2
+let titolari = [];
+let panchina = [];
 
-// Carica rosa.txt automaticamente
+// Fetch rosa.txt automaticamente
 fetch('rosa.txt')
-  .then(res=>res.text())
-  .then(text=>{
-    const parts=text.trim().split(/\n\s*\n/);
-    titolari=parseBlock(parts[0]);
-    panchina=parseBlock(parts[1]);
+  .then(res => res.text())
+  .then(text => {
+    const parts = text.trim().split(/\n\s*\n/);
+    titolari = parseBlock(parts[0]);
+    panchina = parseBlock(parts[1]);
     render();
     initDragDrop();
   })
-  .catch(err=>alert("Errore caricamento rosa.txt: "+err));
+  .catch(err => alert("Errore caricamento rosa.txt: " + err));
 
-function parseBlock(block){
+function parseBlock(block) {
   return block.split('\n')
-    .map(l=>l.replace(';','').trim())
+    .map(l => l.replace(';','').trim())
     .filter(Boolean)
-    .map(name=>({name, role: roleMap[name]||'C', selected:true}));
+    .map(name => ({ name, role: roleMap[name] || 'C', selected: true }));
 }
 
-function render(){
-  renderSection('Titolari',titolari,'titolari');
-  renderSection('Panchina',panchina,'panchina');
-  validateFormation();
+function render() {
+  renderSection('Titolari', titolari, 'titolari');
+  renderSection('Panchina', panchina, 'panchina');
 }
 
-function renderSection(title,list,containerId){
-  const container=document.getElementById(containerId);
-  container.innerHTML=`<h2>${title}</h2>`;
-  ['P','D','C','A'].forEach(r=>{
-    const players=list.filter(p=>p.role===r);
+function renderSection(title, list, containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = `<h2>${title}</h2>`;
+  ['P','D','C','A'].forEach(r => {
+    const players = list.filter(p => p.role===r);
     if(!players.length) return;
-    const div=document.createElement('div');
+    const div = document.createElement('div');
     div.className='players';
-    div.id=containerId+'-'+r;
-    players.forEach(p=>{
-      const el=document.createElement('div');
-      el.className=`player ${p.selected?'selected':''} ${r.toLowerCase()}`;
-      el.textContent=p.name;
-      el.setAttribute('draggable',true);
+    div.id = containerId+'-'+r;
+    players.forEach(p => {
+      const el = document.createElement('div');
+      el.className=`player ${p.selected ? 'selected' : ''} ${r.toLowerCase()}`;
+      el.textContent = p.name;
+      el.setAttribute('draggable', true);
       div.appendChild(el);
     });
     container.appendChild(div);
   });
 }
 
-// Drag&Drop con swap
-function initDragDrop(){
+// Drag & Drop con inversione
+function initDragDrop() {
   ['titolari','panchina'].forEach(sec=>{
     ['P','D','C','A'].forEach(r=>{
       const el=document.getElementById(sec+'-'+r);
@@ -186,67 +182,53 @@ function initDragDrop(){
       Sortable.create(el,{
         group:'players',
         animation:150,
-        swap:true,
+        swap:true,        // swap invece di append
         swapClass:'player-selected',
         onEnd:evt=>{
           const fromId=evt.from.id.split('-')[0];
           const toId=evt.to.id.split('-')[0];
-          const role=evt.to.id.split('-')[1];
-          swapPlayers(evt.item.textContent,fromId,toId,role);
+          const fromRole=evt.from.id.split('-')[1];
+          const toRole=evt.to.id.split('-')[1];
+          const draggedName=evt.item.textContent;
+          const overIndex=Array.from(evt.to.children).indexOf(evt.item);
+          // Scambia con il giocatore nella stessa posizione
+          swapPlayers(draggedName, fromId, toId, overIndex, toRole);
         }
       });
     });
   });
 }
 
-function swapPlayers(name,fromSec,toSec,role){
-  const fromArr=fromSec==='titolari'?titolari:panchina;
-  const toArr=toSec==='titolari'?titolari:panchina;
-  const idxFrom=fromArr.findIndex(p=>p.name===name);
-  if(idxFrom<0) return;
-  const dragged=fromArr.splice(idxFrom,1)[0];
+// Funzione swap giocatori
+function swapPlayers(name, fromSec, toSec, index, role) {
+  const fromArr = fromSec==='titolari'?titolari:panchina;
+  const toArr = toSec==='titolari'?titolari:panchina;
+  const pFromIdx = fromArr.findIndex(p=>p.name===name);
+  if(pFromIdx<0) return;
+  const pDragged = fromArr.splice(pFromIdx,1)[0];
 
-  // se c'è già giocatore di questo ruolo nello stesso container, scambia
-  const sameRole=toArr.filter(p=>p.role===role);
-  if(sameRole.length>0){
-    const swapIdx=toArr.findIndex(p=>p.name===sameRole[0].name);
-    const temp=toArr[swapIdx];
-    toArr[swapIdx]=dragged;
+  // controlla se esiste giocatore in quella posizione
+  let pOverIdx = toArr.findIndex((p,i)=>p.role===role && i===index);
+  if(pOverIdx<0) toArr.splice(index,0,pDragged);
+  else {
+    // scambia
+    const temp = toArr[pOverIdx];
+    toArr[pOverIdx] = pDragged;
     fromArr.push(temp);
-  }else{
-    toArr.push(dragged);
   }
 
   render();
   initDragDrop();
 }
 
-// Aggiorna modulo
-function updateFormation(){
-  const val=document.getElementById('modulo').value;
-  const nums=val.split('-').map(Number);
-  moduloSelected = {P:1,D:nums[0],C:nums[1],A:nums[2]};
-  validateFormation();
-}
-
-// Validazione modulo
-function validateFormation(){
-  ['P','D','C','A'].forEach(r=>{
-    const count = titolari.filter(p=>p.role===r).length;
-    const max = moduloSelected[r];
-    titolari.forEach(p=>{
-      if(p.role===r){
-        const el=document.querySelector(`#titolari-${r} .player:contains("${p.name}")`) || document.querySelectorAll(`#titolari-${r} .player`)[0];
-        if(!el) return;
-        if(count>max) el.classList.add('invalid');
-        else el.classList.remove('invalid');
-      }
-    });
-  });
+// Modulo
+function updateFormation() {
+  const modulo=document.getElementById('modulo').value;
+  console.log('Modulo selezionato:',modulo);
 }
 
 // Output
-function generateOutput(){
+function generateOutput() {
   const out=[];
   titolari.forEach(p=>out.push(p.name+';'));
   out.push('');
