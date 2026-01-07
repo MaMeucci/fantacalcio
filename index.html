@@ -3,128 +3,199 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fantacalcio Schiera Drag&Drop Verticale</title>
+<title>Schiera Formazione</title>
+
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
 <style>
-body { margin:0; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto; background:#f4f6f8;}
-header { background:#111827; color:white; padding:14px; text-align:center; font-weight:600; font-size:18px;}
-.container { padding:12px; }
-.section { margin-bottom:18px; }
-.section h2 { margin:6px 0; font-size:16px; }
-.players { display:flex; flex-direction:column; gap:6px; padding:6px; background:#f0f0f0; border-radius:12px; min-height:50px;}
-.player { padding:10px 12px; border-radius:12px; font-size:14px; cursor:grab; user-select:none; background:#e5e7eb; transition:all .2s; }
-.player.p { background:#d1fae5; }
-.player.d { background:#dbeafe; }
-.player.c { background:#fef3c7; }
-.player.a { background:#fee2e2; }
-button { width:100%; padding:14px; border:none; border-radius:14px; background:#2563eb; color:white; font-size:16px; font-weight:600; margin-top:12px;}
-textarea { width:100%; height:220px; margin-top:12px; padding:12px; border-radius:12px; border:1px solid #ccc; font-family:monospace; font-size:14px;}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
+  background:#f4f6f8;
+}
+header{
+  background:#111827;
+  color:#fff;
+  padding:14px;
+  text-align:center;
+  font-weight:600;
+  font-size:18px;
+}
+.container{ padding:12px; }
+
+.section{ margin-bottom:20px; }
+.section h2{ margin:8px 0; }
+
+.role-row{
+  margin-bottom:10px;
+}
+.role-title{
+  font-size:13px;
+  font-weight:600;
+  margin-bottom:4px;
+}
+.players{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  background:#e5e7eb;
+  padding:8px;
+  border-radius:12px;
+  min-height:46px;
+}
+
+.player{
+  padding:8px 12px;
+  border-radius:10px;
+  background:#fff;
+  font-size:14px;
+  cursor:grab;
+  user-select:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+}
+
+.p{ background:#d1fae5; }
+.d{ background:#dbeafe; }
+.c{ background:#fef3c7; }
+.a{ background:#fee2e2; }
+
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:14px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
+  font-weight:600;
+  margin-top:12px;
+}
+textarea{
+  width:100%;
+  height:220px;
+  margin-top:12px;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid #ccc;
+  font-family:monospace;
+  font-size:14px;
+}
 </style>
 </head>
+
 <body>
-<header>⚽ Fantacalcio Schiera Drag&Drop Verticale</header>
+<header>⚽ Fantacalcio Schiera Formazione</header>
+
 <div class="container">
-<div id="titolari" class="section"></div>
-<div id="panchina" class="section"></div>
-<button onclick="generateOutput()">Genera output</button>
-<textarea id="output" placeholder="Output finale..."></textarea>
+  <div id="titolari" class="section"></div>
+  <div id="panchina" class="section"></div>
+
+  <button onclick="generateOutput()">Genera output</button>
+  <textarea id="output"></textarea>
 </div>
 
 <script>
 let titolari=[], panchina=[];
+const ROLES=['P','D','C','A'];
 
 // Carica rosa.txt
 fetch('rosa.txt')
-  .then(res => res.text())
-  .then(text => {
-    const parts = text.trim().split(/\n\s*\n/);
-    titolari = parseBlock(parts[0]);
-    panchina = parseBlock(parts[1]);
+  .then(r=>r.text())
+  .then(t=>{
+    const parts=t.trim().split(/\n\s*\n/);
+    titolari=parseBlock(parts[0]);
+    panchina=parseBlock(parts[1]);
     render();
-    initDragDrop();
-  })
-  .catch(err => alert("Errore caricamento rosa.txt: "+err));
+    initSortable();
+  });
 
 function parseBlock(block){
-  return block.split('\n').filter(Boolean).map(line=>{
-    const [role,name] = line.split(';').map(s=>s.trim());
+  return block.split('\n').filter(Boolean).map(l=>{
+    const [role,name]=l.split(';').map(s=>s.trim());
     return {role,name};
   });
 }
 
-// Render titolari/panchina
 function render(){
-  renderSection('Titolari', titolari, 'titolari');
-  renderSection('Panchina', panchina, 'panchina');
+  renderSection('Titolari',titolari,'titolari');
+  renderSection('Panchina',panchina,'panchina');
 }
 
-function renderSection(title, arr, containerId){
-  const container = document.getElementById(containerId);
-  container.innerHTML = `<h2>${title}</h2>`;
-  ['P','D','C','A'].forEach(r=>{
-    const players = arr.filter(p=>p.role===r);
-    if(!players.length) return;
-    const div = document.createElement('div');
-    div.className='players';
-    div.id=containerId+'-'+r;
-    players.forEach(p=>{
-      const el = document.createElement('div');
-      el.className = `player ${r.toLowerCase()}`;
-      el.textContent = p.name;
-      div.appendChild(el);
+function renderSection(title,data,id){
+  const container=document.getElementById(id);
+  container.innerHTML=`<h2>${title}</h2>`;
+
+  ROLES.forEach(r=>{
+    const row=document.createElement('div');
+    row.className='role-row';
+
+    row.innerHTML=`<div class="role-title">${roleName(r)}</div>`;
+
+    const list=document.createElement('div');
+    list.className='players';
+    list.id=`${id}-${r}`;
+
+    data.filter(p=>p.role===r).forEach(p=>{
+      const el=document.createElement('div');
+      el.className=`player ${r.toLowerCase()}`;
+      el.textContent=p.name;
+      list.appendChild(el);
     });
-    container.appendChild(div);
+
+    row.appendChild(list);
+    container.appendChild(row);
   });
 }
 
-// Drag&Drop con swap semplice tra titolari e panchina
-function initDragDrop(){
+function initSortable(){
   ['titolari','panchina'].forEach(sec=>{
-    ['P','D','C','A'].forEach(r=>{
-      const el = document.getElementById(sec+'-'+r);
-      if(!el) return;
+    ROLES.forEach(r=>{
+      const el=document.getElementById(`${sec}-${r}`);
       Sortable.create(el,{
         group:'players',
         animation:150,
-        onEnd: evt=>{
-          const fromSec = evt.from.id.split('-')[0];
-          const toSec = evt.to.id.split('-')[0];
-          const role = evt.to.id.split('-')[1];
-          const name = evt.item.textContent;
-
-          const fromArr = fromSec==='titolari'?titolari:panchina;
-          const toArr = toSec==='titolari'?titolari:panchina;
-
-          // Rimuove dall'array originale
-          const idx = fromArr.findIndex(p=>p.name===name && p.role===role);
-          if(idx<0) return;
-          const moved = fromArr.splice(idx,1)[0];
-
-          // Inserisce nel nuovo array nella posizione corretta
-          let targetIndices = [];
-          toArr.forEach((p,i)=>{ if(p.role===role) targetIndices.push(i); });
-          let newIndex = targetIndices[evt.newIndex]!==undefined?targetIndices[evt.newIndex]:toArr.length;
-          toArr.splice(newIndex,0,moved);
-
-          render();
-          initDragDrop();
-        }
+        onEnd:e=>updateData(e,sec,r)
       });
     });
   });
 }
 
-// Output
+function updateData(evt){
+  const from=evt.from.id.split('-');
+  const to=evt.to.id.split('-');
+
+  const fromArr=from[0]==='titolari'?titolari:panchina;
+  const toArr=to[0]==='titolari'?titolari:panchina;
+  const role=from[1];
+  const name=evt.item.textContent;
+
+  const idx=fromArr.findIndex(p=>p.name===name && p.role===role);
+  if(idx<0) return;
+  const moved=fromArr.splice(idx,1)[0];
+
+  let roleIndexes=[];
+  toArr.forEach((p,i)=>{ if(p.role===role) roleIndexes.push(i); });
+
+  const insertAt=roleIndexes[evt.newIndex] ?? toArr.length;
+  toArr.splice(insertAt,0,moved);
+
+  render();
+  initSortable();
+}
+
 function generateOutput(){
   const out=[];
-  ['titolari','panchina'].forEach(sec=>{
-    const arr = sec==='titolari'?titolari:panchina;
-    ['P','D','C','A'].forEach(r=>{
-      arr.filter(p=>p.role===r).forEach(p=>out.push(p.role+';'+p.name+';'));
+  [titolari,panchina].forEach((arr,i)=>{
+    ROLES.forEach(r=>{
+      arr.filter(p=>p.role===r).forEach(p=>out.push(p.name+';'));
     });
-    if(sec==='titolari') out.push('');
+    if(i===0) out.push('');
   });
-  document.getElementById('output').value = out.join('\n');
+  output.value=out.join('\n');
+}
+
+function roleName(r){
+  return {P:'Portieri',D:'Difensori',C:'Centrocampisti',A:'Attaccanti'}[r];
 }
 </script>
 </body>
