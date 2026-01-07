@@ -1,4 +1,3 @@
-Ruolo;Nome
 P;Maignan;
 D;Rrahmani;
 D;Tomori;
