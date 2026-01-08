@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111827">
+<title>Fantacalcio Schiera Formazione</title>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
+  background:#f4f6f8;
+}
+header{
+  background:#111827;
+  color:#fff;
+  padding:14px;
+  text-align:center;
+  font-weight:600;
+  font-size:18px;
+}
+.container{ padding:12px; }
+
+.section{ margin-bottom:20px; }
+.section h2{ margin:8px 0; }
+
+.role-row{
+  margin-bottom:10px;
+}
+.role-title{
+  font-size:13px;
+  font-weight:600;
+  margin-bottom:4px;
+}
+.players{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  background:#e5e7eb;
+  padding:8px;
+  border-radius:12px;
+  min-height:46px;
+}
+
+.player{
+  padding:8px 12px;
+  border-radius:10px;
+  background:#fff;
+  font-size:14px;
+  cursor:grab;
+  user-select:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+}
+
+.p{ background:#d1fae5; }
+.d{ background:#dbeafe; }
+.c{ background:#fef3c7; }
+.a{ background:#fee2e2; }
+
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:14px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
+  font-weight:600;
+  margin-top:12px;
+}
+textarea{
+  width:100%;
+  height:220px;
+  margin-top:12px;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid #ccc;
+  font-family:monospace;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+<header>⚽ Fantacalcio Schiera Formazione multidevice</header>
+
+<div class="container">
+  <div id="titolari" class="section"></div>
+  <div id="panchina" class="section"></div>
+
+  <button onclick="generateOutput()">Genera output</button>
+  <button onclick="generateEmail()">Genera Email</button>
+  <textarea id="output"></textarea>
+
+</div>
+
+<script>
+let titolari=[], panchina=[];
+const ROLES=['P','D','C','A'];
+
+// Carica rosa.txt
+fetch('rosa.txt')
+  .then(r=>r.text())
+  .then(t=>{
+    const parts=t.trim().split(/\n\s*\n/);
+    titolari=parseBlock(parts[0]);
+    panchina=parseBlock(parts[1]);
+    render();
+    initSortable();
+  });
+
+function parseBlock(block){
+  return block.split('\n').filter(Boolean).map(l=>{
+    const [role,name]=l.split(';').map(s=>s.trim());
+    return {role,name};
+  });
+}
+
+function render(){
+  renderSection('Titolari',titolari,'titolari');
+  renderSection('Panchina',panchina,'panchina');
+}
+
+function renderSection(title,data,id){
+  const container=document.getElementById(id);
+  container.innerHTML=`<h2>${title}</h2>`;
+
+  ROLES.forEach(r=>{
+    const row=document.createElement('div');
+    row.className='role-row';
+
+    row.innerHTML=`<div class="role-title">${roleName(r)}</div>`;
+
+    const list=document.createElement('div');
+    list.className='players';
+    list.id=`${id}-${r}`;
+
+    data.filter(p=>p.role===r).forEach(p=>{
+      const el=document.createElement('div');
+      el.className=`player ${r.toLowerCase()}`;
+      el.textContent=p.name;
+      list.appendChild(el);
+    });
+
+    row.appendChild(list);
+    container.appendChild(row);
+  });
+}
+
+function initSortable(){
+  ['titolari','panchina'].forEach(sec=>{
+    ROLES.forEach(r=>{
+      const el=document.getElementById(`${sec}-${r}`);
+      Sortable.create(el,{
+        group:'players',
+        animation:150,
+        onEnd:e=>updateData(e,sec,r)
+      });
+    });
+  });
+}
+
+function updateData(evt){
+  const from=evt.from.id.split('-');
+  const to=evt.to.id.split('-');
+
+  const fromArr=from[0]==='titolari'?titolari:panchina;
+  const toArr=to[0]==='titolari'?titolari:panchina;
+  const role=from[1];
+  const name=evt.item.textContent;
+
+  const idx=fromArr.findIndex(p=>p.name===name && p.role===role);
+  if(idx<0) return;
+  const moved=fromArr.splice(idx,1)[0];
+
+  let roleIndexes=[];
+  toArr.forEach((p,i)=>{ if(p.role===role) roleIndexes.push(i); });
+
+  const insertAt=roleIndexes[evt.newIndex] ?? toArr.length;
+  toArr.splice(insertAt,0,moved);
+
+  render();
+  initSortable();
+}
+
+function generateOutput(){
+  const out=[];
+  [titolari,panchina].forEach((arr,i)=>{
+    ROLES.forEach(r=>{
+      arr.filter(p=>p.role===r).forEach(p=>out.push(p.name+';'));
+    });
+    if(i===0) out.push('');
+  });
+  output.value=out.join('\n');
+}
+
+function roleName(r){
+  return {P:'Portieri',D:'Difensori',C:'Centrocampisti',A:'Attaccanti'}[r];
+}
+</script>
+<script>
+let emailData=null;
+
+// carica dati_email.txt
+fetch('dati_email.txt')
+  .then(r=>r.text())
+  .then(t=>{
+    emailData={};
+    t.split('\n').forEach(l=>{
+      const [k,v]=l.split('=');
+      if(k && v) emailData[k.trim()]=v.trim();
+    });
+  });
+function isIPhone(){
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function generateEmail(){
+  if(!emailData){
+    alert("File dati_email.txt non caricato");
+    return;
+  }
+
+  const body=document.getElementById('output').value;
+  if(!body.trim()){
+    alert("Genera prima l'output");
+    return;
+  }
+
+  const to = encodeURIComponent(emailData.destinatario);
+  const subject = encodeURIComponent(emailData.soggetto);
+  const text = encodeURIComponent(body);
+
+  if(isIPhone()){
+    // 👉 Apple Mail (FUNZIONA)
+    window.location.href =
+      `mailto:${to}?subject=${subject}&body=${text}`;
+  } else {
+    // 👉 Gmail (fallback)
+    window.open(
+      `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${text}`,
+      "_blank"
+    );
+  }
+}
+
+</script>
+
+</body>
+</html>
