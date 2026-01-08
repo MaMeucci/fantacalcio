@@ -229,6 +229,7 @@ function generateEmail(){
   }
 
   const mailto=
+    `mailfrom:${encodeURIComponent(emailData.mittente)}` +
     `mailto:${encodeURIComponent(emailData.destinatario)}` +
     `?subject=${encodeURIComponent(emailData.soggetto)}` +
     `&body=${encodeURIComponent(body)}`;
