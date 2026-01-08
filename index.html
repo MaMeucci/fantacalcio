@@ -87,7 +87,17 @@ textarea{
 
 <body>
 <header>⚽ Fantacalcio Schiera Formazione multidevice</header>
-
+<div style="padding:12px;">
+  <label><strong>Modulo:</strong></label>
+  <select id="moduloSelect" onchange="applyModulo()">
+    <option value="5-3-2">5-3-2</option>
+    <option value="5-4-1">4-3-3</option>
+    <option value="4-3-3">4-3-3</option>
+    <option value="4-4-2">4-4-2</option>
+    <option value="3-5-2">3-5-2</option>
+    <option value="3-4-3">3-4-3</option>
+  </select>
+</div>
 <div class="container">
   <div id="titolari" class="section"></div>
   <div id="panchina" class="section"></div>
@@ -188,15 +198,22 @@ function updateData(evt){
 }
 
 function generateOutput(){
-  const out=[];
-  [titolari,panchina].forEach((arr,i)=>{
-    ROLES.forEach(r=>{
-      arr.filter(p=>p.role===r).forEach(p=>out.push(p.name+';'));
-    });
-    if(i===0) out.push('');
+
+  const req = MODULI[moduloCorrente];
+  let errors = [];
+
+  ["D","C","A"].forEach(role=>{
+    const count = titolari.filter(p=>p.role===role).length;
+    if(count < req[role]){
+      errors.push(`Manca ${req[role]-count} ${roleName(role)}`);
+    }
   });
-  output.value=out.join('\n');
-}
+
+  if(errors.length){
+    alert("Formazione non valida:\n" + errors.join("\n"));
+    return;
+  }
+
 
 function roleName(r){
   return {P:'Portieri',D:'Difensori',C:'Centrocampisti',A:'Attaccanti'}[r];
@@ -249,6 +266,39 @@ function generateEmail(){
 }
 
 </script>
+<script>
+let moduloCorrente = "4-3-3";
 
+const MODULI = {
+  "5-3-2": { D:5, C:3, A:2 },
+  "5-4-1": { D:4, C:3, A:3 },
+  "4-3-3": { D:4, C:3, A:3 },
+  "4-4-2": { D:4, C:4, A:2 },
+  "3-5-2": { D:3, C:5, A:2 },
+  "3-4-3": { D:3, C:4, A:3 }
+};
+
+function applyModulo(){
+  moduloCorrente = document.getElementById("moduloSelect").value;
+  const req = MODULI[moduloCorrente];
+
+  ["D","C","A"].forEach(role=>{
+    let inCampo = titolari.filter(p=>p.role===role);
+    const diff = inCampo.length - req[role];
+
+    // 🔻 Troppi giocatori → sposta in panchina
+    if(diff > 0){
+      for(let i=0;i<diff;i++){
+        const p = inCampo.pop();
+        titolari.splice(titolari.indexOf(p),1);
+        panchina.push(p);
+      }
+    }
+  });
+
+  render();
+  initSortable();
+}
+</script>
 </body>
 </html>
