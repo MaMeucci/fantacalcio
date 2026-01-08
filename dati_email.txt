@@ -1,0 +1,3 @@
+mittente=marco.meucci@gmail.com
+destinatario=cihf_a@googlegroups.com
+soggetto=[CIHF Serie A] ZERU TITULI
