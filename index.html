@@ -280,7 +280,7 @@ const MODULI = {
 function applyModulo(){
   moduloCorrente = document.getElementById("moduloSelect").value;
   const req = MODULI[moduloCorrente];
-
+  console.dir(titolari);
   ["D","C","A"].forEach(role=>{
     let inCampo = titolari.filter(p=>p.role===role);
     const diff = inCampo.length - req[role];
