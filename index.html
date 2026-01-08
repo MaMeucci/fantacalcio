@@ -228,13 +228,15 @@ function generateEmail(){
     return;
   }
 
-  const mailto=
-    `mailto:${encodeURIComponent(emailData.destinatario)}` +
-    `?subject=${encodeURIComponent(emailData.soggetto)}` +
-    `&body=${encodeURIComponent(body)}`;
+  const gmailUrl =
+    "https://mail.google.com/mail/?view=cm&fs=1" +
+    "&to=" + encodeURIComponent(emailData.destinatario) +
+    "&su=" + encodeURIComponent(emailData.soggetto) +
+    "&body=" + encodeURIComponent(body);
 
-  window.location.href=mailto;
+  window.open(gmailUrl, "_blank");
 }
 </script>
+
 </body>
 </html>
