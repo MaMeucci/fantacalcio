@@ -201,7 +201,7 @@ function generateOutput(){
 
   const req = MODULI[moduloCorrente];
   let errors = [];
-
+  console.dir(titolari);
   ["D","C","A"].forEach(role=>{
     const count = titolari.filter(p=>p.role===role).length;
     if(count < req[role]){
