@@ -93,7 +93,9 @@ textarea{
   <div id="panchina" class="section"></div>
 
   <button onclick="generateOutput()">Genera output</button>
+  <button onclick="generateEmail()">Genera Email</button>
   <textarea id="output"></textarea>
+
 </div>
 
 <script>
@@ -198,6 +200,40 @@ function generateOutput(){
 
 function roleName(r){
   return {P:'Portieri',D:'Difensori',C:'Centrocampisti',A:'Attaccanti'}[r];
+}
+</script>
+<script>
+let emailData=null;
+
+// carica dati_email.txt
+fetch('dati_email.txt')
+  .then(r=>r.text())
+  .then(t=>{
+    emailData={};
+    t.split('\n').forEach(l=>{
+      const [k,v]=l.split('=');
+      if(k && v) emailData[k.trim()]=v.trim();
+    });
+  });
+
+function generateEmail(){
+  if(!emailData){
+    alert("File dati_email.txt non caricato");
+    return;
+  }
+
+  const body=document.getElementById('output').value;
+  if(!body.trim()){
+    alert("Genera prima l'output");
+    return;
+  }
+
+  const mailto=
+    `mailto:${encodeURIComponent(emailData.destinatario)}` +
+    `?subject=${encodeURIComponent(emailData.soggetto)}` +
+    `&body=${encodeURIComponent(body)}`;
+
+  window.location.href=mailto;
 }
 </script>
 </body>
