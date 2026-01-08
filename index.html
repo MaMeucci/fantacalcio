@@ -215,6 +215,9 @@ fetch('dati_email.txt')
       if(k && v) emailData[k.trim()]=v.trim();
     });
   });
+function isIPhone(){
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 function generateEmail(){
   if(!emailData){
@@ -228,14 +231,23 @@ function generateEmail(){
     return;
   }
 
-  const gmailUrl =
-    "https://mail.google.com/mail/?view=cm&fs=1" +
-    "&to=" + encodeURIComponent(emailData.destinatario) +
-    "&su=" + encodeURIComponent(emailData.soggetto) +
-    "&body=" + encodeURIComponent(body);
+  const to = encodeURIComponent(emailData.destinatario);
+  const subject = encodeURIComponent(emailData.soggetto);
+  const text = encodeURIComponent(body);
 
-  window.open(gmailUrl, "_blank");
+  if(isIPhone()){
+    // 👉 Apple Mail (FUNZIONA)
+    window.location.href =
+      `mailto:${to}?subject=${subject}&body=${text}`;
+  } else {
+    // 👉 Gmail (fallback)
+    window.open(
+      `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${text}`,
+      "_blank"
+    );
+  }
 }
+
 </script>
 
 </body>
