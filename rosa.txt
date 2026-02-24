@@ -21,6 +21,6 @@ D;Vitik;
 C;Fabbian;
 C;Tramoni;
 C;Mazzitelli;
-C;Bernede;
+C;Zaragoza;
 A;Kulenovic;
 A;Berardi;
